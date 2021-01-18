@@ -7,6 +7,7 @@ public class LambdaMethodHandler {
 
     public Object handleRequest(Object input) {
         String result = "Hello World - " + input;
+        result = result + "; S3 - " +new S3().getS3Object();
         System.out.println(result);
         return result;
     }

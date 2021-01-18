@@ -3,8 +3,7 @@
 /.aws-sam/
 /target
 /.aws-sam
-/terraform/.terraform.lock.hcl
-/terraform/.terraform
-/terraform/.terraform.tfstate.lock.info
-/terraform/terraform.tfstate
-/terraform/terraform.tfstate.backup
+/.terraform/
+/.terraform.lock.hcl
+/terraform/
+/dependency-reduced-pom.xml

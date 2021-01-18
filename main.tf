@@ -1,3 +1,9 @@
+terraform {
+  backend "local" {
+    path = "terraform/terraform.tfstate"
+  }
+}
+
 provider "aws" {
   shared_credentials_file = "~/.aws/credentials"
   profile = "default"
@@ -72,12 +78,14 @@ resource "aws_lambda_permission" "apigw_lambda" {
 }
 
 resource "aws_lambda_function" "lambda" {
-  filename      = "c:/bench2021/AWSLambda/target/examples-0.1.0-SNAPSHOT.jar"
+  filename      = "target/examples-0.1.0-SNAPSHOT.jar"
   function_name = "HelloTerraform"
   role          = aws_iam_role.iam_for_lambda.arn
   handler       = "org.ost.investigate.aws.lambda.examples.hello.LambdaMethodHandler::handleRequest"
   source_code_hash = filebase64sha256("c:/bench2021/AWSLambda/target/examples-0.1.0-SNAPSHOT.jar")
   runtime = "java8"
+  memory_size = 256
+  timeout = 60
 }
 
 # IAM
@@ -85,7 +93,7 @@ resource "aws_iam_role" "iam_for_lambda" {
   name = "iam_for_lambda"
 
   assume_role_policy = <<EOF
-{
+  {
   "Version": "2012-10-17",
   "Statement": [
     {
@@ -97,6 +105,24 @@ resource "aws_iam_role" "iam_for_lambda" {
       "Sid": ""
     }
   ]
+  }
+  EOF
 }
-EOF
+
+resource "aws_iam_role_policy_attachment" "s3-read-only-attach" {
+  role       = aws_iam_role.iam_for_lambda.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
+}
+
+# S3
+resource "aws_s3_bucket" "my_s3_bucket" {
+  bucket = "my-s3-bucket-name-terra"
+  acl    = "public-read"
+}
+
+resource "aws_s3_bucket_object" "object" {
+  bucket = "my-s3-bucket-name-terra"
+  key    = "my-s3-bucket-name-terra-key"
+  source = "s3/HelloWorld.json"
+  etag = filemd5("s3/HelloWorld.json")
 }

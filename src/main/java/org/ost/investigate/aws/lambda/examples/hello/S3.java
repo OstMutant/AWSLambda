@@ -22,21 +22,15 @@ import static java.util.Optional.ofNullable;
 
 public class S3 {
     public String getS3Greeting(String bucket, String key, QueryParameters queryParameters) {
-        GetObjectRequest objectRequest = GetObjectRequest
-                .builder()
-                .key(key)
-                .bucket(bucket)
-                .build();
-        System.out.println("getS3Object objectRequest - " + objectRequest);
         queryParameters = ofNullable(queryParameters).orElse(new QueryParameters());
-        String messageTemplate = queryParameters.getIsASync()
-                                 ? getS3ObjectAsync(objectRequest)
-                                 : getS3ObjectSync(objectRequest);
+        String messageTemplate = queryParameters.getIsS3ASync()
+                                 ? getS3ObjectAsync(bucket, key)
+                                 : getS3ObjectSync(bucket, key);
         return String.format(getLocalisedMessage(messageTemplate, queryParameters.getLocalisation()),
                              queryParameters.getName() == null ? "World" : queryParameters.getName());
     }
 
-    private String getS3ObjectAsync(GetObjectRequest objectRequest) {
+    private String getS3ObjectAsync(String bucket, String key) {
         System.out.println("getS3ObjectAsync");
         S3AsyncClient s3Client = S3AsyncClient
                 .builder()
@@ -45,34 +39,34 @@ public class S3 {
                                                           .maxPendingConnectionAcquires(1000))
                 .region(Region.US_EAST_2)
                 .build();
-        System.out.println("getS3ObjectAsync s3Client - " + s3Client);
 
-        try {
-            ResponseBytes<GetObjectResponse> objectBytes = s3Client.getObject(objectRequest,
-                                                                              AsyncResponseTransformer.toBytes()).get();
-            System.out.println("getS3ObjectAsync objectBytes - " + objectBytes);
-            String json = new String(objectBytes.asByteArray(), StandardCharsets.UTF_8);
-            System.out.println("getS3ObjectAsync result - " + json);
-            return json;
-        } catch (Exception e) {
-            System.out.println("getS3ObjectAsync Exception - " + e.getMessage());
-        }
-        s3Client.close();
-        return null;
+        GetObjectRequest objectRequest = GetObjectRequest
+                .builder()
+                .key(key)
+                .bucket(bucket)
+                .build();
+        ResponseBytes<GetObjectResponse> objectBytes =
+                s3Client.getObject(objectRequest, AsyncResponseTransformer.toBytes())
+                        .whenComplete((res, err) -> s3Client.close())
+                        .join();
+
+        return new String(objectBytes.asByteArray(), StandardCharsets.UTF_8);
     }
 
-    private String getS3ObjectSync(GetObjectRequest objectRequest) {
-        System.out.println("getS3ObjectSync");
+    private String getS3ObjectSync(String bucket, String key) {
         S3Client s3Client = S3Client
                 .builder()
                 .region(Region.US_EAST_2)
                 .httpClientBuilder(ApacheHttpClient.builder())
                 .build();
-        System.out.println("getS3ObjectSync s3Client - " + s3Client);
+
+        GetObjectRequest objectRequest = GetObjectRequest
+                .builder()
+                .key(key)
+                .bucket(bucket)
+                .build();
         ResponseBytes<GetObjectResponse> objectBytes = s3Client.getObjectAsBytes(objectRequest);
-        System.out.println("getS3ObjectSync objectBytes - " + objectBytes);
         String json = new String(objectBytes.asByteArray(), StandardCharsets.UTF_8);
-        System.out.println("getS3ObjectSync result - " + json);
         s3Client.close();
         return json;
     }

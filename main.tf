@@ -9,6 +9,7 @@ variable "myRegion" { type             = string }
 variable "accountId" { type            = string }
 variable "s3Bucket" { type             = string }
 variable "s3Key" { type                = string }
+variable "dynamoDBTable" { type        = string }
 variable "lambda_env_variables" {
   type                                 = map(string)
   default                              = {}
@@ -18,6 +19,7 @@ locals {
   aggregated_request_template          = <<REQUEST_TEMPLATE
       #set($inputRoot = $input.path('$'))
       #set($allParams = $input.params())
+      $util.qr($inputRoot.put("httpMethod", $context.httpMethod))
       $util.qr($inputRoot.put("headers", $allParams.get('header')))
       $util.qr($inputRoot.put("parameters", $allParams.get('path')))
       $util.qr($inputRoot.put("queryparameters", $allParams.get('querystring')))
@@ -148,14 +150,14 @@ resource "aws_iam_role" "iam_role_for_lambda" {
 {
   "Version": "2012-10-17",
   "Statement": [
-    {
-      "Action": "sts:AssumeRole",
-      "Principal": {
-        "Service": "lambda.amazonaws.com"
-      },
-      "Effect": "Allow",
-      "Sid": ""
-    }
+        {
+          "Action": "sts:AssumeRole",
+          "Principal": {
+            "Service": "lambda.amazonaws.com"
+          },
+          "Effect": "Allow",
+          "Sid": ""
+        }
   ]
   }
   EOF
@@ -165,6 +167,12 @@ resource "aws_iam_role_policy_attachment" "s3_read_only_policy_attachment" {
   role                    = aws_iam_role.iam_role_for_lambda.name
   policy_arn              = "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
 }
+
+resource "aws_iam_role_policy_attachment" "dynamo_db_policy_attachment" {
+  role                    = aws_iam_role.iam_role_for_lambda.name
+  policy_arn              = "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"
+}
+
 
 # S3
 resource "aws_s3_bucket" "s3_bucket" {
@@ -177,4 +185,17 @@ resource "aws_s3_bucket_object" "s3_bucket_object" {
   key                     = var.s3Key
   source                  = "s3/HelloTemplateS3.json"
   etag                    = filemd5("s3/HelloTemplateS3.json")
+}
+
+# Dynamodb
+resource "aws_dynamodb_table" "dynamodb_table" {
+  name                    = var.dynamoDBTable
+  hash_key                = "time"
+  billing_mode            = "PROVISIONED"
+  read_capacity           = 5
+  write_capacity          = 5
+  attribute {
+    name                  = "time"
+    type                  = "S"
+  }
 }

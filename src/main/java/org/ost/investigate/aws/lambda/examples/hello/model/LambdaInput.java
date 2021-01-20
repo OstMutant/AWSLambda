@@ -11,5 +11,6 @@ import lombok.NoArgsConstructor;
 @Builder
 public class LambdaInput {
     private QueryParameters queryparameters;
-    private String message;
+    private String httpMethod;
+    private Message message;
 }

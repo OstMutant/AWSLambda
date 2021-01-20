@@ -12,6 +12,6 @@ import lombok.NoArgsConstructor;
 public class QueryParameters {
     private String name;
     @Builder.Default
-    private Boolean isASync = false;
+    private Boolean isS3ASync = false;
     private String localisation;
 }

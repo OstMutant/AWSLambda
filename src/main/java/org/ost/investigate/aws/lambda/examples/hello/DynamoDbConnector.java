@@ -1,6 +1,8 @@
 package org.ost.investigate.aws.lambda.examples.hello;
 
 
+import com.google.inject.Inject;
+import com.google.inject.name.Named;
 import org.ost.investigate.aws.lambda.examples.hello.model.Message;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.regions.Region;
@@ -15,8 +17,16 @@ import java.util.stream.Collectors;
 
 import static java.util.Optional.ofNullable;
 
-public class DynamoDb {
-    public void putItem(String tableName, Message message) {
+public class DynamoDbConnector {
+    @Inject
+    @Named("DYNAMO_DB_TABLE")
+    private String dynamoDBTable;
+
+    @Inject
+    @Named("REGION")
+    private String region;
+
+    public void putItem(Message message) {
         if (!ofNullable(message).map(Message::getText).isPresent())
             return;
 
@@ -27,7 +37,7 @@ public class DynamoDb {
             itemValues.put("message", AttributeValue.builder().s(message.getText()).build());
 
             PutItemRequest request = PutItemRequest.builder()
-                                                   .tableName(tableName)
+                                                   .tableName(dynamoDBTable)
                                                    .item(itemValues)
                                                    .build();
             PutItemResponse putItemResponse = cli.putItem(request);
@@ -36,23 +46,22 @@ public class DynamoDb {
         });
     }
 
-    public List<Message> getItems(String tableName) {
+    public List<Message> getItems() {
         return applyClient(cli -> {
-            ScanRequest scanRequest = ScanRequest.builder().tableName(tableName).build();
+            ScanRequest scanRequest = ScanRequest.builder().tableName(dynamoDBTable).build();
             ScanResponse response = cli.scan(scanRequest);
             return response
                     .items()
                     .stream()
                     .map(v -> Message.builder().time(v.get("time").s()).text(v.get("message").s()).build())
-                    .collect(
-                            Collectors.toList());
+                    .collect(Collectors.toList());
         });
     }
 
 
     private <T> T applyClient(Function<DynamoDbClient, T> func) {
         DynamoDbClient ddb = DynamoDbClient.builder()
-                                           .region(Region.US_EAST_2)
+                                           .region(Region.of(region))
                                            .httpClientBuilder(ApacheHttpClient.builder())
                                            .build();
         T result = func.apply(ddb);

@@ -1,5 +1,7 @@
 package org.ost.investigate.aws.lambda.examples.hello;
 
+import com.google.inject.Guice;
+import com.google.inject.Injector;
 import org.ost.investigate.aws.lambda.examples.hello.model.LambdaInput;
 import org.ost.investigate.aws.lambda.examples.hello.model.LambdaOutput;
 import org.ost.investigate.aws.lambda.examples.hello.model.Message;
@@ -15,6 +17,8 @@ public class LambdaMethodHandler {
     public static void main(String... args) {
         ENV.put("S3BUCKET", "s3-bucket-terra-test");
         ENV.put("S3KEY", "s3-bucket-terra-test-key");
+        ENV.put("DYNAMO_DB_TABLE", "messagesTable");
+        ENV.put("REGION", "us-east-2");
         new LambdaMethodHandler()
                 .handleRequest(LambdaInput.builder()
                                           .queryparameters(QueryParameters.builder()
@@ -22,7 +26,7 @@ public class LambdaMethodHandler {
                                                                           .localisation("UA")
                                                                           .isS3ASync(true)
                                                                           .build())
-                                          .httpMethod("POST")
+                                          .httpMethod("GET")
                                           .message(Message.builder().text("Test Message").build())
                                           .build());
     }
@@ -33,36 +37,14 @@ public class LambdaMethodHandler {
 //    }
 
     public LambdaOutput handleRequest(LambdaInput input) {
+        Injector injector = Guice.createInjector(new GuiceConfig(ENV));
+        RestHandler restHandler = injector.getInstance(RestHandler.class);
         System.out.println("System.getenv - " + ENV);
         System.out.println("input - " + input.toString());
         if ("POST".equals(input.getHttpMethod())) {
-            return post(input);
+            return restHandler.post(input);
         } else {
-            return get(input);
+            return restHandler.get(input);
         }
-    }
-
-    private LambdaOutput post(LambdaInput input) {
-        SystemEnvironmentVariables systemEnvironmentVariables = new SystemEnvironmentVariables(ENV);
-        LambdaOutput lambdaOutput = new LambdaOutput();
-        lambdaOutput.setGreeting(new S3().getS3Greeting(systemEnvironmentVariables.getS3BucketName(),
-                                                        systemEnvironmentVariables.getS3KeyName(),
-                                                        input.getQueryparameters()));
-        DynamoDb dynamoDb = new DynamoDb();
-        dynamoDb.putItem("messagesTable", input.getMessage());
-        lambdaOutput.setMessages(dynamoDb.getItems("messagesTable"));
-        System.out.println(lambdaOutput);
-        return lambdaOutput;
-    }
-
-    private LambdaOutput get(LambdaInput input) {
-        SystemEnvironmentVariables systemEnvironmentVariables = new SystemEnvironmentVariables(ENV);
-        LambdaOutput lambdaOutput = new LambdaOutput();
-        lambdaOutput.setGreeting(new S3().getS3Greeting(systemEnvironmentVariables.getS3BucketName(),
-                                                        systemEnvironmentVariables.getS3KeyName(),
-                                                        input.getQueryparameters()));
-        lambdaOutput.setMessages(new DynamoDb().getItems("messagesTable"));
-        System.out.println(lambdaOutput);
-        return lambdaOutput;
     }
 }

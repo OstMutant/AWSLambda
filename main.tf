@@ -39,7 +39,7 @@ resource "aws_api_gateway_rest_api" "gateway_rest_api" {
 }
 
 resource "aws_api_gateway_deployment" "gateway_stage" {
-  depends_on              = [aws_api_gateway_integration.gateway_integration]
+  depends_on              = [module.gateway_integration_GET, module.gateway_integration_POST]
   rest_api_id             = aws_api_gateway_rest_api.gateway_rest_api.id
   stage_name              = "dev"
 }
@@ -50,74 +50,24 @@ resource "aws_api_gateway_resource" "gateway_resource" {
   rest_api_id             = aws_api_gateway_rest_api.gateway_rest_api.id
 }
 
-# API Gateway - Get
-resource "aws_api_gateway_method" "gateway_method" {
+# API Gateway - GET
+module "gateway_integration_GET" {
+  source                  = "./terraformModules"
   rest_api_id             = aws_api_gateway_rest_api.gateway_rest_api.id
   resource_id             = aws_api_gateway_resource.gateway_resource.id
   http_method             = "GET"
-  authorization           = "NONE"
-}
-
-resource "aws_api_gateway_integration" "gateway_integration" {
-  rest_api_id             = aws_api_gateway_rest_api.gateway_rest_api.id
-  resource_id             = aws_api_gateway_resource.gateway_resource.id
-  http_method             = aws_api_gateway_method.gateway_method.http_method
-  integration_http_method = "POST"
-  type                    = "AWS"
-  uri                     = aws_lambda_function.lambda_function.invoke_arn
-  request_templates       = {
-    "application/json"    = local.aggregated_request_template
-  }
-  passthrough_behavior    = "WHEN_NO_TEMPLATES"
-}
-
-resource "aws_api_gateway_method_response" "gateway_response_200" {
-  rest_api_id             = aws_api_gateway_rest_api.gateway_rest_api.id
-  resource_id             = aws_api_gateway_resource.gateway_resource.id
-  http_method             = aws_api_gateway_method.gateway_method.http_method
-  status_code = "200"
-}
-
-resource "aws_api_gateway_integration_response" "MyDemoIntegrationResponse" {
-  rest_api_id             = aws_api_gateway_rest_api.gateway_rest_api.id
-  resource_id             = aws_api_gateway_resource.gateway_resource.id
-  http_method             = aws_api_gateway_method.gateway_method.http_method
-  status_code             = aws_api_gateway_method_response.gateway_response_200.status_code
+  lambda_function_invoke_arn       = aws_lambda_function.lambda_function.invoke_arn
+  api_gateway_integration_template = local.aggregated_request_template
 }
 
 # API Gateway - POST
-resource "aws_api_gateway_method" "gateway_method_POST" {
-  rest_api_id             = aws_api_gateway_rest_api.gateway_rest_api.id
-  resource_id             = aws_api_gateway_resource.gateway_resource.id
-  http_method             = "POST"
-  authorization           = "NONE"
-}
-
-resource "aws_api_gateway_integration" "gateway_integration_POST" {
-  rest_api_id             = aws_api_gateway_rest_api.gateway_rest_api.id
-  resource_id             = aws_api_gateway_resource.gateway_resource.id
-  http_method             = aws_api_gateway_method.gateway_method_POST.http_method
-  integration_http_method = "POST"
-  type                    = "AWS"
-  uri                     = aws_lambda_function.lambda_function.invoke_arn
-  request_templates       = {
-    "application/json"    = local.aggregated_request_template
-  }
-  passthrough_behavior    = "WHEN_NO_TEMPLATES"
-}
-
-resource "aws_api_gateway_method_response" "gateway_response_200_POST" {
-  rest_api_id             = aws_api_gateway_rest_api.gateway_rest_api.id
-  resource_id             = aws_api_gateway_resource.gateway_resource.id
-  http_method             = aws_api_gateway_method.gateway_method_POST.http_method
-  status_code = "200"
-}
-
-resource "aws_api_gateway_integration_response" "MyDemoIntegrationResponse_POST" {
-  rest_api_id             = aws_api_gateway_rest_api.gateway_rest_api.id
-  resource_id             = aws_api_gateway_resource.gateway_resource.id
-  http_method             = aws_api_gateway_method.gateway_method_POST.http_method
-  status_code             = aws_api_gateway_method_response.gateway_response_200_POST.status_code
+module "gateway_integration_POST" {
+  source                   = "./terraformModules"
+  rest_api_id              = aws_api_gateway_rest_api.gateway_rest_api.id
+  resource_id              = aws_api_gateway_resource.gateway_resource.id
+  http_method              = "POST"
+  lambda_function_invoke_arn       = aws_lambda_function.lambda_function.invoke_arn
+  api_gateway_integration_template = local.aggregated_request_template
 }
 
 # Lambda
@@ -136,10 +86,10 @@ resource "aws_lambda_function" "lambda_function" {
   handler                 = "org.ost.investigate.aws.lambda.examples.hello.LambdaMethodHandler::handleRequest"
   source_code_hash        = filebase64sha256("target/examples-0.1.0-SNAPSHOT.jar")
   runtime                 = "java8"
-  memory_size             = 256
-  timeout                 = 60
+  memory_size             = 512
+  timeout                 = 120
   environment {
-    variables             = "${merge(var.lambda_env_variables, map("S3BUCKET", var.s3Bucket), map("S3KEY", var.s3Key))}"
+    variables             = "${merge(var.lambda_env_variables, map("S3BUCKET", var.s3Bucket), map("S3KEY", var.s3Key), map("DYNAMO_DB_TABLE", var.dynamoDBTable), map("REGION", var.myRegion))}"
   }
 }
 

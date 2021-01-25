@@ -18,6 +18,7 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Map;
 
 import static java.util.Optional.ofNullable;
@@ -48,7 +49,9 @@ public class S3Connector {
         System.out.println("getS3ObjectAsync");
         S3AsyncClient s3Client = S3AsyncClient
                 .builder()
-                .httpClientBuilder(NettyNioAsyncHttpClient.builder())
+                .httpClient(NettyNioAsyncHttpClient
+                                    .builder()
+                                    .build())
                 .region(Region.of(region))
                 .build();
 

@@ -85,11 +85,16 @@ resource "aws_lambda_function" "lambda_function" {
   role                    = aws_iam_role.iam_role_for_lambda.arn
   handler                 = "org.ost.investigate.aws.lambda.examples.hello.LambdaMethodHandler::handleRequest"
   source_code_hash        = filebase64sha256("target/examples-0.1.0-SNAPSHOT.jar")
-  runtime                 = "java8"
-  memory_size             = 512
+  runtime                 = "java11"
+  memory_size             = 1536
   timeout                 = 120
   environment {
-    variables             = "${merge(var.lambda_env_variables, map("S3BUCKET", var.s3Bucket), map("S3KEY", var.s3Key), map("DYNAMO_DB_TABLE", var.dynamoDBTable), map("REGION", var.myRegion))}"
+    variables             = "${merge(var.lambda_env_variables,
+        map("S3BUCKET", var.s3Bucket),
+        map("S3KEY", var.s3Key),
+        map("DYNAMO_DB_TABLE", var.dynamoDBTable),
+        map("REGION", var.myRegion))
+        }"
   }
 }
 
@@ -123,6 +128,10 @@ resource "aws_iam_role_policy_attachment" "dynamo_db_policy_attachment" {
   policy_arn              = "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"
 }
 
+resource "aws_iam_role_policy_attachment" "cloudwatch_policy_attachment" {
+  role                    = aws_iam_role.iam_role_for_lambda.name
+  policy_arn              = "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
+}
 
 # S3
 resource "aws_s3_bucket" "s3_bucket" {

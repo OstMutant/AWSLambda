@@ -10,6 +10,8 @@ import org.ost.investigate.aws.lambda.examples.hello.model.QueryParameters;
 import java.util.HashMap;
 import java.util.Map;
 
+import static java.util.Optional.ofNullable;
+
 public class LambdaMethodHandler {
 
     private static Map<String, String> ENV = new HashMap<>(System.getenv());
@@ -41,6 +43,10 @@ public class LambdaMethodHandler {
         RestHandler restHandler = injector.getInstance(RestHandler.class);
         System.out.println("System.getenv - " + ENV);
         System.out.println("input - " + input.toString());
+        if(ofNullable(input.getQueryparameters()).filter(QueryParameters::getIsJustHello).isPresent()){
+            return LambdaOutput.builder().greeting("Just Hello World!").build();
+        }
+
         if ("POST".equals(input.getHttpMethod())) {
             return restHandler.post(input);
         } else {

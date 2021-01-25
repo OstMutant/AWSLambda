@@ -14,4 +14,6 @@ public class QueryParameters {
     @Builder.Default
     private Boolean isS3ASync = false;
     private String localisation;
+    @Builder.Default
+    private Boolean isJustHello = false;
 }

@@ -86,8 +86,8 @@ resource "aws_lambda_function" "lambda_function" {
   handler                 = "org.ost.investigate.aws.lambda.examples.hello.LambdaMethodHandler::handleRequest"
   source_code_hash        = filebase64sha256("target/examples-0.1.0-SNAPSHOT.jar")
   runtime                 = "java11"
-  memory_size             = 1536
-  timeout                 = 120
+  memory_size             = 512
+  timeout                 = 121
   environment {
     variables             = "${merge(var.lambda_env_variables,
         map("S3BUCKET", var.s3Bucket),
